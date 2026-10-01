@@ -1,0 +1,40 @@
+# Base44 development compose for graphify.
+#
+# Installs graphify from the bind-mounted source, runs it on the bundled
+# worked/example corpus (code-only, no LLM needed), then serves the
+# interactive graph.html on port 3000.
+#
+# Usage:  docker compose -f docker-compose.base44.yml up -d
+services:
+  graphify:
+    build:
+      context: .
+      dockerfile: Dockerfile.base44
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - GRAPHIFY_NO_TIPS=1
+      - PYTHONUNBUFFERED=1
+    # 1. Re-link the editable install to the mounted source (deps already in image).
+    # 2. Build the knowledge graph from the example corpus (AST-only, no API key).
+    # 3. Cluster + generate graph.html (hub-named communities, no LLM needed).
+    # 4. Serve the output directory on port 3000.
+    command:
+      - sh
+      - -ec
+      - |
+        pip install -e . --no-deps --quiet
+        rm -rf worked/example/graphify-out
+        graphify extract worked/example --code-only
+        graphify cluster-only worked/example
+        echo '<meta http-equiv="refresh" content="0;url=graph.html">' > worked/example/graphify-out/index.html
+        python -m http.server 3000 --directory worked/example/graphify-out
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/graph.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s

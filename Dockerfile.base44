@@ -1,0 +1,17 @@
+# Base44 dev image — installs graphify and its dependencies from source.
+# The source is bind-mounted at runtime (see docker-compose.base44.yml), so
+# edits to the repo are reflected immediately via the editable install.
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only what pip needs to resolve and install the package + its deps.
+# The rest of the source arrives via the bind mount at runtime.
+COPY pyproject.toml ./
+COPY graphify/ ./graphify/
+
+RUN pip install --no-cache-dir -e .
